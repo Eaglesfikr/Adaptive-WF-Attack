@@ -10,8 +10,104 @@ from WFlib import models
 from WFlib.tools import data_processor, evaluator
 import torch.nn.functional as F
 import warnings
+from sklearn.mixture import GaussianMixture
+import matplotlib.pyplot as plt
+import seaborn as sns
+import scienceplots
 warnings.filterwarnings("ignore")
-from utils import eval_models, build_loader, train_model, cal_GMM, random_sample
+
+def run_plot(data1, data2, ax, title_name):
+    #sns.histplot(data=valid_data, kde=True, linewidth=0.01, linestyle="", alpha=0.4, binwidth=10, ax=ax, color="#904579", stat="probability",line_kws={'linewidth': 2.5})
+    sns.histplot(data=data1, ax=ax, kde=True, stat="probability", label="ac", cumulative=False)
+    sns.histplot(data=data2, ax=ax, kde=True, stat="probability", label="wa", cumulative=False)
+    ax.set_title(title_name)
+    ax.legend()
+
+def softmax_entropy(x: torch.Tensor) -> torch.Tensor:
+    """Entropy of softmax distribution from logits."""
+    return -(x.softmax(1) * x.log_softmax(1)).sum(1)
+
+def compute_energy_score(logits, T=1.0):
+    """
+    计算能量分数
+
+    参数:
+        logits (torch.Tensor): 模型输出的logits张量，形状为 (batch_size, num_classes)
+        T (float): 温度参数，默认值为 1.0
+
+    返回:
+        energy_scores (torch.Tensor): 能量分数张量，形状为 (batch_size,)
+    """
+    # 计算能量分数
+    energy_scores = -T * torch.logsumexp(logits / T, dim=1)
+    return energy_scores
+
+def cal_GMM2(cur_iter, df_model, ares_model, device):
+    # Fusion两个模型生成一个数据
+    all_energy = []
+    all_confidence = []
+    all_entropy = []
+    all_preds = []
+    all_true = []
+    fusion_ratio = 0.5
+    with torch.no_grad():
+        df_model.eval()
+        ares_model.eval()
+
+        for index, cur_data in enumerate(cur_iter):
+            cur_X, cur_y = cur_data[0].to(device), cur_data[1].to(device)
+            df_outs = df_model(cur_X[...,:5000])
+            ares_outs = ares_model(cur_X)
+            outs = fusion_ratio * df_outs + (1-fusion_ratio) * ares_outs
+            softmax_probs = torch.softmax(outs, dim=1)
+            max_probs, preds = torch.max(softmax_probs, dim=1)
+
+            all_entropy.append(softmax_entropy(outs).cpu().numpy())
+            all_energy.append(compute_energy_score(outs, T=args.temp).cpu().numpy())
+            all_confidence.append(max_probs.cpu().numpy())
+            all_preds.append(preds.cpu().numpy())
+            all_true.append(cur_y.cpu().numpy())
+
+    all_entropy = np.concatenate(all_entropy).flatten()
+    all_energy = np.concatenate(all_energy).flatten()
+    all_confidence = np.concatenate(all_confidence).flatten()
+    all_preds = np.concatenate(all_preds).flatten()
+    all_true = np.concatenate(all_true).flatten()
+
+    all_entropy = (all_entropy-all_entropy.min())/(all_entropy.max()-all_entropy.min())
+    all_energy = (all_energy-all_energy.min())/(all_energy.max()-all_energy.min())
+    
+    gmm_entropy = all_entropy.reshape(-1, 1)
+    
+    # 建立gmm
+    gmm = GaussianMixture(n_components=2, tol=1e-6)
+    gmm.fit(gmm_entropy)
+    all_gmms = gmm.predict_proba(gmm_entropy) 
+    all_gmms = all_gmms[:,gmm.means_.argmin()]
+
+    print(f"entropy: {all_entropy.shape}, range: {all_entropy.min()}~{all_entropy.max()}")
+    print(f"energy: {all_energy.shape}, range: {all_energy.min()}~{all_energy.max()}")
+    print(f"confidence: {all_confidence.shape}, range: {all_confidence.min()}~{all_confidence.max()}")
+    print(f"gmm: {all_gmms.shape}, range: {all_gmms.min()}~{all_gmms.max()}")
+
+    # plot
+    ac_indices = (all_preds == all_true)
+    wa_indices = (all_preds != all_true)
+    print("# of ac:", ac_indices.sum())
+    print("# of wa:", wa_indices.sum())
+
+    # debug
+    all_gmms[all_gmms<1e-6] = 0
+
+    fig, axes = plt.subplots(
+        nrows=1, ncols=2, 
+        #constrained_layout=True, 
+        figsize=(10, 4)
+    )
+    #run_plot(all_entropy[ac_indices], all_entropy[wa_indices], axes[0], "entropy")
+    run_plot(all_energy[ac_indices], all_energy[wa_indices], axes[0], "energy")
+    #run_plot(all_confidence[ac_indices], all_confidence[wa_indices], axes[2], "confidence")
+    run_plot(all_gmms[ac_indices], all_gmms[wa_indices], axes[1], "gmm")
 
 # Set a fixed seed for reproducibility
 fix_seed = 2024
@@ -41,6 +137,7 @@ parser.add_argument("--seq_len", type=int, default=5000, help="Input sequence le
 # Optimization parameters
 parser.add_argument("--num_workers", type=int, default=10, help="Data loader num workers")
 parser.add_argument("--batch_size", type=int, default=256, help="Batch size of train input data")
+parser.add_argument("--temp", type=int, default=1, help="Temperature")
 
 # Output parameters
 parser.add_argument("--eval_method", type=str, default="common", help="Method used in the evaluation, options=[common, kNN, holmes]")
@@ -72,26 +169,17 @@ out_file = os.path.join(log_path, f"{args.result_file}.json")
 # Load training and validation data
 print("-----------------------------")
 print(f"loading test file: ", os.path.join(in_path, f"{args.test_file}.npz"))
-origin_X, origin_y = data_processor.load_data(os.path.join(in_path, f"{args.origin_file}.npz"), args.feature, args.seq_len)
 test_X, test_y = data_processor.load_data(os.path.join(in_path, f"{args.test_file}.npz"), args.feature, args.seq_len)
 num_classes = len(np.unique(test_y))
-random_y = torch.zeros(test_y.shape) # mask标签，避免标签泄漏
 
 # Make sure there are test samples for all categories
 assert num_classes == test_y.max() + 1, "Labels are not continuous"
 
-# Print dataset information
-origin_X, origin_y = random_sample(origin_X, origin_y, per_class_num=30)
-
-print(f"Origin: X={origin_X.shape}, y={origin_y.shape}")
 print(f"Test: X={test_X.shape}, y={test_y.shape}")
 print(f"num_classes: {num_classes}")
 
 # Load data into iterators
 test_iter = data_processor.load_iter(test_X, test_y, args.batch_size, False, args.num_workers)
-mask_iter = data_processor.load_iter(test_X, random_y, args.batch_size, False, args.num_workers)
-origin_iter = data_processor.load_iter(origin_X, origin_y, args.batch_size, True, args.num_workers)
-
 
 # Initialize model, optimizer, and loss function
 df_model = eval(f"models.DF")(num_classes, args.max_num_tabs)
@@ -106,47 +194,5 @@ ares_model.to(device)
 
 df_optimizer = torch.optim.Adam(df_model.parameters(), lr=1e-4)
 ares_optimizer = torch.optim.Adam(ares_model.parameters(), lr=1e-4)
-
-y_true, y_pred = eval_models(test_iter, df_model, ares_model, device)
-result = evaluator.measurement(y_true, y_pred, args.eval_metrics)
-print("base:", result)
-max_f1 = result["F1-score"]
-torch.save(df_model.state_dict(), os.path.join(ckp_path, args.model, "DF.pth"))
-torch.save(ares_model.state_dict(), os.path.join(ckp_path, args.model, "ARES.pth"))
-
-# Finetune
-for epoch in range(10):
-    df_clean_probs, df_preds = cal_GMM(mask_iter, df_model, 5000, device)
-    ares_clean_probs, ares_preds = cal_GMM(mask_iter, ares_model, 10000, device)
-
-    df_pseudo_loader, df_unlabeled_loader = build_loader(df_clean_probs, test_X, df_preds, epoch, args.batch_size)
-    ares_pseudo_loader, ares_unlabeled_loader = build_loader(ares_clean_probs, test_X, ares_preds, epoch, args.batch_size)
-
-    for _ in range(3):
-        train_model(df_pseudo_loader, df_unlabeled_loader, origin_iter, ares_model, ares_optimizer, 10000, device)
-        train_model(ares_pseudo_loader, ares_unlabeled_loader, origin_iter, df_model, df_optimizer, 5000, device)
-
-        y_true, y_pred = eval_models(test_iter, df_model, ares_model, device)
-        result = evaluator.measurement(y_true, y_pred, ["Accuracy", "Precision", "Recall", "F1-score"])
-        print(f"epoch{epoch}-{_}:", result)
-        print("-------------------------------------")
-        
-        if result["F1-score"] > max_f1:
-            max_f1 = result["F1-score"]
-            torch.save(df_model.state_dict(), os.path.join(ckp_path, args.model, "DF.pth"))
-            torch.save(ares_model.state_dict(), os.path.join(ckp_path, args.model, "ARES.pth"))
-
-# Evaluation
-df_model = eval(f"models.DF")(num_classes, args.max_num_tabs)
-df_model.load_state_dict(torch.load(os.path.join(ckp_path, args.model, "DF.pth"), map_location="cpu"))
-df_model.to(device)
-
-ares_model = eval(f"models.ARES")(num_classes, args.max_num_tabs)
-ares_model.load_state_dict(torch.load(os.path.join(ckp_path, args.model, "ARES.pth"), map_location="cpu"))
-ares_model.to(device)
-
-y_true, y_pred = eval_models(test_iter, df_model, ares_model, device)
-result = evaluator.measurement(y_true, y_pred, ["Accuracy", "Precision", "Recall", "F1-score"])
-print("final result:", result)
-with open(out_file, "w") as fp:
-    json.dump(result, fp, indent=4)
+cal_GMM2(test_iter, df_model, ares_model, device)
+plt.savefig(f'analysis/figs/{args.dataset}_{args.test_file}_{args.temp}.jpg', dpi=300)
