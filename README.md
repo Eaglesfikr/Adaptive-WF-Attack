@@ -20,5 +20,5 @@ python exp/dataset_process/dataset_split.py --infile datasets/TimeDrift/0313.npz
 
 ### Run Proteus
 ```
-bash proteus.sh
+bash scripts/TimeDrift/Proteus.sh
 ```
