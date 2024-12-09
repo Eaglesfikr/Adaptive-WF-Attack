@@ -161,10 +161,12 @@ cython_debug/
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 #.idea/
 
+exp/ablation
 0_archive
 1_analysis
-wflib
 datasets
+LibMTL
 checkpoints
 debug
 logs
+scripts/Proteus
