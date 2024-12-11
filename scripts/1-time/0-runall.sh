@@ -5,4 +5,5 @@ bash scripts/1-time/DF.sh &
 bash scripts/1-time/NetCLR.sh &
 bash scripts/1-time/Tik-Tok.sh &
 bash scripts/1-time/Var-CNN.sh &
-bash scripts/1-time/RF.sh 
+bash scripts/1-time/RF.sh &
+bash scripts/1-time/TF.sh
