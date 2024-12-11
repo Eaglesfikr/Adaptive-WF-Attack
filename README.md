@@ -8,14 +8,16 @@ The **Proteus** is built upon the WFlib library. We need clone the [WFlib](https
 
 ### Install
 ```
-mv Website-Fingerprinting-Library wflib
+rm -rf wflib
+mv wflib_copy wflib
 cd wflib
 pip install --user .
+cd ..
 ```
 
 ### Dataset Split
 ```
-python exp/dataset_process/dataset_split.py --infile datasets/TimeDrift/0313.npz
+python exp/dataset_process/dataset_split.py --infile datasets/TimeDrift/240313.npz
 ```
 
 ### Run Proteus
