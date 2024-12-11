@@ -114,75 +114,74 @@ def model_adapt(model, test_X, adapt_loader, origin_loader, test_loader, eval_me
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
     origin_iter = iter(origin_loader)
     criterion = torch.nn.CrossEntropyLoss()
-    ratio = 0.5
     max_f1 = 0
     best_epoch = 0
 
-    for epoch in range(30):
-        clean_probs, pseudo_labels = cal_GMM_probs(model, test_loader, device)
-        pseudo_loader = cal_pseudo_labels(clean_probs, test_X, pseudo_labels)
-        pseudo_iter = iter(pseudo_loader)
+    for epoch in range(100):
+        if epoch % 5 == 0:
+            clean_probs, pseudo_labels = cal_GMM_probs(model, test_loader, device)
+            pseudo_loader = cal_pseudo_labels(clean_probs, test_X, pseudo_labels)
+            pseudo_iter = iter(pseudo_loader)
 
-        for pseudo_idx in range(3):
-            model.train()
-            sum_origin_loss = 0
-            sum_mmd_loss = 0
-            sum_entropy_loss = 0
-            sum_pseudo_loss = 0
-            sum_count = 0
+        model.train()
+        sum_origin_loss = 0
+        sum_mmd_loss = 0
+        sum_entropy_loss = 0
+        sum_pseudo_loss = 0
+        sum_count = 0
 
-            for index, cur_data in enumerate(adapt_loader):
-                try:
-                    cur_origin_data = next(origin_iter)
-                except:
-                    origin_iter = iter(origin_loader)
-                    cur_origin_data = next(origin_iter)
-                try:
-                    cur_pseudo_data = next(pseudo_iter)
-                except:
-                    pseudo_iter = iter(pseudo_loader)
-                    cur_pseudo_data = next(pseudo_iter)
-            
-                cur_X, cur_y = cur_data[0].to(device), cur_data[1].to(device)
-                origin_X, origin_y = cur_origin_data[0].to(device), cur_origin_data[1].to(device)
-                pseudo_X, pseudo_y = cur_pseudo_data[0].to(device), cur_pseudo_data[1].to(device)
-                optimizer.zero_grad()
+        for index, cur_data in enumerate(adapt_loader):
+            try:
+                cur_origin_data = next(origin_iter)
+            except:
+                origin_iter = iter(origin_loader)
+                cur_origin_data = next(origin_iter)
+            try:
+                cur_pseudo_data = next(pseudo_iter)
+            except:
+                pseudo_iter = iter(pseudo_loader)
+                cur_pseudo_data = next(pseudo_iter)
+        
+            cur_X, cur_y = cur_data[0].to(device), cur_data[1].to(device)
+            origin_X, origin_y = cur_origin_data[0].to(device), cur_origin_data[1].to(device)
+            pseudo_X, pseudo_y = cur_pseudo_data[0].to(device), cur_pseudo_data[1].to(device)
+            optimizer.zero_grad()
 
-                origin_outs, origin_features = model(origin_X)
-                adapt_outs, adapt_features = model(cur_X)
-                pseudo_outs, pseudo_features = model(pseudo_X)
+            origin_outs, origin_features = model(origin_X)
+            adapt_outs, adapt_features = model(cur_X)
+            pseudo_outs, pseudo_features = model(pseudo_X)
 
-                softmax_out = F.softmax(adapt_outs, dim=-1)
-                msoftmax = softmax_out.mean(dim=0)
+            softmax_out = F.softmax(adapt_outs, dim=-1)
+            msoftmax = softmax_out.mean(dim=0)
 
-                classification_loss = criterion(origin_outs, origin_y)
-                pseudo_loss = criterion(pseudo_outs, pseudo_y)
-                min_entropy_loss = softmax_entropy(adapt_outs).mean(0) + torch.sum(msoftmax * torch.log(msoftmax + 1e-5))
-                mmd_loss = cal_mmd_loss(origin_features, adapt_features)
-                loss = pseudo_loss + min_entropy_loss + mmd_loss + classification_loss
+            classification_loss = criterion(origin_outs, origin_y)
+            pseudo_loss = criterion(pseudo_outs, pseudo_y)
+            min_entropy_loss = softmax_entropy(adapt_outs).mean(0) + torch.sum(msoftmax * torch.log(msoftmax + 1e-5))
+            mmd_loss = cal_mmd_loss(origin_features, adapt_features)
+            loss = pseudo_loss + min_entropy_loss + mmd_loss + classification_loss
 
-                loss.backward()
-                optimizer.step()
-                sum_origin_loss += classification_loss.data.cpu().numpy() * origin_outs.shape[0]
-                sum_mmd_loss += mmd_loss.data.cpu().numpy() * origin_outs.shape[0]
-                sum_entropy_loss += min_entropy_loss.data.cpu().numpy() * origin_outs.shape[0]
-                sum_pseudo_loss += pseudo_loss.data.cpu().numpy() * origin_outs.shape[0]
-                sum_count += adapt_outs.shape[0]
+            loss.backward()
+            optimizer.step()
+            sum_origin_loss += classification_loss.data.cpu().numpy() * origin_outs.shape[0]
+            sum_mmd_loss += mmd_loss.data.cpu().numpy() * origin_outs.shape[0]
+            sum_entropy_loss += min_entropy_loss.data.cpu().numpy() * origin_outs.shape[0]
+            sum_pseudo_loss += pseudo_loss.data.cpu().numpy() * origin_outs.shape[0]
+            sum_count += adapt_outs.shape[0]
 
-            train_origin_loss = round(sum_origin_loss / sum_count, 3)
-            train_mmd_loss    = round(sum_mmd_loss / sum_count, 3)
-            train_entropy_loss = round(sum_entropy_loss / sum_count, 3)
-            train_pseudo_loss = round(sum_pseudo_loss / sum_count)
+        train_origin_loss = round(sum_origin_loss / sum_count, 3)
+        train_mmd_loss    = round(sum_mmd_loss / sum_count, 3)
+        train_entropy_loss = round(sum_entropy_loss / sum_count, 3)
+        train_pseudo_loss = round(sum_pseudo_loss / sum_count)
 
-            print(f"epoch {epoch} loss: origin={train_origin_loss}, entropy={train_entropy_loss}, mmd={train_mmd_loss}, pseudo={train_pseudo_loss}")
-            epoch_result = model_eval(model, test_loader, eval_metrics, device)
-            print(epoch_result)
-            if epoch_result["F1-score"] > max_f1:
-                max_f1 = epoch_result["F1-score"]
-                best_epoch = epoch
-            print(f"best epoch {best_epoch}: F1-score = {max_f1}")
-            print("----------------------------")
-
+        print(f"epoch {epoch} loss: origin={train_origin_loss}, entropy={train_entropy_loss}, mmd={train_mmd_loss}, pseudo={train_pseudo_loss}")
+        epoch_result = model_eval(model, test_loader, eval_metrics, device)
+        print(epoch_result)
+        if epoch_result["F1-score"] > max_f1:
+            max_f1 = epoch_result["F1-score"]
+            best_epoch = epoch
+    
+        print(f"best epoch {best_epoch}: F1-score = {max_f1}")
+        print("----------------------------")
     return max_f1, best_epoch
 
 fix_seed = 2024
@@ -219,6 +218,7 @@ parser.add_argument("--checkpoints", type=str, default="./checkpoints/", help="L
 parser.add_argument("--load_name", type=str, default="base", help="Name of the model file")
 parser.add_argument("--result_file", type=str, default="result", help="File to save test results")
 parser.add_argument("--gmm_threshold", type=float, default=0.6, help="GMM threshold")
+parser.add_argument("--model_save_name", type=str, default="proteus", help="Name used to save the model")
 
 # Parse arguments
 args = parser.parse_args()
@@ -260,7 +260,11 @@ adapt_iter = data_processor.load_iter(test_X, torch.zeros_like(test_y), args.bat
 test_iter = data_processor.load_iter(test_X, test_y, args.batch_size, False, args.num_workers)
 
 # Initialize model, optimizer, and loss function
-model = eval(f"models.{args.model}")(num_classes)
+if args.model in ["BAPM", "TMWF"]: # Assume num_tabs is known
+    model = eval(f"models.{args.model}")(num_classes, args.num_tabs)
+else:
+    model = eval(f"models.{args.model}")(num_classes)
+
 model.load_state_dict(torch.load(os.path.join(ckp_path, f"{args.load_name}.pth"), map_location="cpu"))
 model.to(device)
 
@@ -276,6 +280,9 @@ result = model_eval(model, test_iter, args.eval_metrics, device)
 result["best_f1_score"] = best_f1_score
 result["best_f1_epoch"] = best_f1_epoch
 print(result)
+
+model_save_file = os.path.join(ckp_path, f"{args.model_save_name}.pth")
+torch.save(model.state_dict(), model_save_file)
 
 with open(out_file, "w") as fp:
     json.dump(result, fp, indent=4)

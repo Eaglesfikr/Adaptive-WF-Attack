@@ -145,7 +145,11 @@ def model_train(
         for index, cur_data in enumerate(train_iter):
             cur_X, cur_y = cur_data[0].to(device), cur_data[1].to(device)
             optimizer.zero_grad()
-            outs, _ = model(cur_X)
+            
+            if loss_name in ["TripletMarginLoss", "SupConLoss"]:
+                outs = model(cur_X)
+            else:
+                outs, _ = model(cur_X)
 
             if loss_name == "TripletMarginLoss":
                 hard_pairs = miner(outs, cur_y)

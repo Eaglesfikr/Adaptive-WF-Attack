@@ -158,13 +158,13 @@ class ARES(nn.Module):
         x = self.combination(x)
         x = x.permute(0, 2, 1)
         x = self.topm_mhsa(x, self.pos_embed.unsqueeze(0))
-        x = x.mean(dim=1)
-        x = self.mlp(x)
-        return x
+        feat = x.mean(dim=1)
+        x = self.mlp(feat)
+        return x, feat
 
 if __name__ == '__main__':
     net = ARES(num_classes=100)
     x = np.random.rand(4, 1,10000)
     x = torch.tensor(x, dtype=torch.float32)
-    out = net(x)
-    print(f"in:{x.shape} --> out:{out.shape}")
+    out, _ = net(x)
+    print(f"in:{x.shape} --> out:{out.shape}, {_.shape}")
