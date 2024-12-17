@@ -1,14 +1,15 @@
-dataset=TimeDrift
-model=TMWF
+for dataset in Version1 Version2 Version3 Version4
+do
+model=BAPM
 
 python -u exp/train.py \
   --dataset ${dataset} \
   --model ${model} \
-  --device cuda:1 \
+  --device cuda:3 \
   --feature DIR \
-  --seq_len 30720 \
+  --seq_len 8500 \
   --train_epochs 30 \
-  --batch_size 80 \
+  --batch_size 128 \
   --learning_rate 5e-4 \
   --optimizer Adam \
   --eval_metrics Accuracy Precision Recall F1-score \
@@ -20,15 +21,15 @@ rm -rf checkpoints/${dataset}/${model}/proteus.pth
 cp checkpoints/${dataset}/${model}/max_f1.pth checkpoints/${dataset}/${model}/proteus.pth
 wait
 
-for file_name in test 240327 240410 240709 240816 241209
+for file_name in drift
 do
     python -u exp/test.py \
       --dataset ${dataset} \
       --model ${model} \
-      --device cuda:1 \
+      --device cuda:3 \
       --test_file ${file_name} \
       --feature DIR \
-      --seq_len 30720 \
+      --seq_len 8500 \
       --batch_size 256 \
       --eval_metrics Accuracy Precision Recall F1-score \
       --load_name max_f1 \
@@ -37,14 +38,15 @@ do
     python -u exp/proteus.py \
         --dataset ${dataset} \
         --model ${model} \
-        --device cuda:1 \
+        --device cuda:3 \
         --train_file train \
         --test_file ${file_name} \
         --feature DIR \
-        --seq_len 30720 \
+        --seq_len 8500 \
         --batch_size 128 \
         --eval_metrics Accuracy Precision Recall F1-score \
         --load_name proteus \
         --model_save_name proteus \
         --result_file Proteus_${file_name} 
+done
 done

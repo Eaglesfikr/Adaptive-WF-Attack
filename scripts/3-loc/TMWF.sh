@@ -1,10 +1,10 @@
-dataset=TimeDrift
+dataset=LocDrift
 model=TMWF
 
 python -u exp/train.py \
   --dataset ${dataset} \
   --model ${model} \
-  --device cuda:1 \
+  --device cuda:3 \
   --feature DIR \
   --seq_len 30720 \
   --train_epochs 30 \
@@ -15,17 +15,16 @@ python -u exp/train.py \
   --save_metric F1-score \
   --save_name max_f1
 
-wait
-rm -rf checkpoints/${dataset}/${model}/proteus.pth
-cp checkpoints/${dataset}/${model}/max_f1.pth checkpoints/${dataset}/${model}/proteus.pth
-wait
-
-for file_name in test 240327 240410 240709 240816 241209
+for file_name in test us uk japan germany
 do
+    rm -rf checkpoints/${dataset}/${model}/proteus.pth
+    cp checkpoints/${dataset}/${model}/max_f1.pth checkpoints/${dataset}/${model}/proteus.pth
+    wait
+    
     python -u exp/test.py \
       --dataset ${dataset} \
       --model ${model} \
-      --device cuda:1 \
+      --device cuda:3 \
       --test_file ${file_name} \
       --feature DIR \
       --seq_len 30720 \
@@ -37,7 +36,7 @@ do
     python -u exp/proteus.py \
         --dataset ${dataset} \
         --model ${model} \
-        --device cuda:1 \
+        --device cuda:3 \
         --train_file train \
         --test_file ${file_name} \
         --feature DIR \

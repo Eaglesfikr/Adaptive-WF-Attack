@@ -5,7 +5,7 @@ model=NetCLR
 python -u exp/pretrain.py \
   --dataset ${pretrian_dataset} \
   --model ${model} \
-  --device cuda:0 \
+  --device cuda:7 \
   --train_epochs 100 \
   --train_file train \
   --batch_size 256 \
@@ -16,7 +16,7 @@ python -u exp/pretrain.py \
 python -u exp/train.py \
   --dataset ${dataset} \
   --model ${model} \
-  --device cuda:0 \
+  --device cuda:7 \
   --feature DIR \
   --seq_len 5000 \
   --train_file train \
@@ -26,7 +26,7 @@ python -u exp/train.py \
   --learning_rate 3e-4 \
   --optimizer Adam \
   --eval_metrics Accuracy Precision Recall F1-score \
-  --save_metric Accuracy \
+  --save_metric F1-score \
   --load_file checkpoints/${pretrian_dataset}/NetCLR/pretrain.pth \
   --save_name max_f1
 
@@ -40,7 +40,7 @@ do
     python -u exp/test.py \
       --dataset ${dataset} \
       --model ${model} \
-      --device cuda:0 \
+      --device cuda:7 \
       --test_file ${file_name} \
       --feature DIR \
       --seq_len 5000 \
@@ -52,7 +52,7 @@ do
     python -u exp/proteus.py \
         --dataset ${dataset} \
         --model ${model} \
-        --device cuda:0 \
+        --device cuda:7 \
         --train_file train \
         --test_file ${file_name} \
         --feature DIR \
