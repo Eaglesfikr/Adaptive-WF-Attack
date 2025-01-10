@@ -14,35 +14,30 @@ import torch.nn.functional as F
 import warnings
 warnings.filterwarnings("ignore")
 
-# 自适应高斯核函数
 def adaptive_gaussian_kernel(source, target):
     n_samples = int(source.size(0)) + int(target.size(0))
     total = torch.cat([source, target], dim=0)
     L2_distance = ((total.unsqueeze(0) - total.unsqueeze(1)) ** 2).sum(2)
     
-    # 计算带宽（根据数据自适应调整）
     bandwidth = torch.sum(L2_distance) / (n_samples ** 2 - n_samples)
-    bandwidth = torch.clamp(bandwidth, min=1e-5)  # 避免数值不稳定
+    bandwidth = torch.clamp(bandwidth, min=1e-5)  
     
     kernel_val = torch.exp(-L2_distance / (bandwidth + 1e-5))
     return kernel_val
 
-# 改进后的 MMD 损失函数
 def cal_mmd_loss(source_features, target_features):
     batch_size = min(source_features.size(0), target_features.size(0))
     source_features = source_features[:batch_size]
     target_features = target_features[:batch_size]
 
-    # 使用自适应高斯核
     kernels = adaptive_gaussian_kernel(source_features, target_features)
 
-    # 计算 MMD 损失
-    XX = kernels[:batch_size, :batch_size]  # 源域到源域
-    YY = kernels[batch_size:, batch_size:]  # 目标域到目标域
-    XY = kernels[:batch_size, batch_size:]  # 源域到目标域
-    YX = kernels[batch_size:, :batch_size]  # 目标域到源域
+    XX = kernels[:batch_size, :batch_size]  
+    YY = kernels[batch_size:, batch_size:]  
+    XY = kernels[:batch_size, batch_size:]  
+    YX = kernels[batch_size:, :batch_size]  
 
-    # 计算最终损失
+   
     loss = torch.mean(XX + YY - XY - YX)
     return loss
 
@@ -89,12 +84,11 @@ def cal_GMM_probs(model, test_iter, device):
     all_entropy = np.concatenate(all_entropy).flatten()
     all_preds = np.concatenate(all_preds).flatten()
 
-    # 归一化
+
     all_entropy = (all_entropy-all_entropy.min())/(all_entropy.max()-all_entropy.min())
     all_entropy = all_entropy.reshape(-1, 1)
     all_preds = torch.tensor(all_preds, dtype=torch.int64)
 
-    # 建立gmm
     gmm = GaussianMixture(n_components=2, tol=1e-6)
     gmm.fit(all_entropy)
     prob = gmm.predict_proba(all_entropy) 
