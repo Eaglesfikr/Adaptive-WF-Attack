@@ -4,8 +4,6 @@ The implementation code of Proteus. Proteus dynamically adapts the model to acco
 
 ## Usage
 
-The **Proteus** is built upon the WFlib library. We need clone the [WFlib](https://github.com/Xinhao-Deng/Website-Fingerprinting-Library) repository.
-
 ### Install
 ```
 cd wflib_copy
