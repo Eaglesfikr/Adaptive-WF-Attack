@@ -100,14 +100,14 @@ else:
     print("Loading the pretrained model in ", args.load_file)
     checkpoint = torch.load(args.load_file)
 
-    for k in list(checkpoint.keys()):
-        if k.startswith('backbone.'):
-            if k.startswith('backbone') and not k.startswith('backbone.fc'):
-                checkpoint[k[len("backbone."):]] = checkpoint[k]
-        del checkpoint[k]
+    # for k in list(checkpoint.keys()):
+    #     if k.startswith('backbone.'):
+    #         if k.startswith('backbone') and not k.startswith('backbone.fc'):
+    #             checkpoint[k[len("backbone."):]] = checkpoint[k]
+    #     del checkpoint[k]
 
-    log = model.load_state_dict(checkpoint, strict=False)
-    assert log.missing_keys == ['fc.weight', 'fc.bias']
+    model.load_state_dict(checkpoint, strict=False)
+    # assert log.missing_keys == ['fc.weight', 'fc.bias']
 
 model.to(device)
 

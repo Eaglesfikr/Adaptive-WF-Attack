@@ -164,10 +164,14 @@ cython_debug/
 exp/ablation
 0_archive
 1_analysis
-datasets
+*datasets
 LibMTL
 checkpoints
 debug
 logs
 scripts/Proteus
 analysis
+exp/complex_proteus.py
+exp/latency.py
+exp/complex_test.py
+scripts

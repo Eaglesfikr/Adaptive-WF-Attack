@@ -5,7 +5,7 @@ model=NetCLR
 python -u exp/pretrain.py \
   --dataset ${pretrian_dataset} \
   --model ${model} \
-  --device cuda:7 \
+  --device cuda:0 \
   --train_epochs 100 \
   --train_file train \
   --batch_size 256 \
@@ -16,7 +16,7 @@ python -u exp/pretrain.py \
 python -u exp/train.py \
   --dataset ${dataset} \
   --model ${model} \
-  --device cuda:7 \
+  --device cuda:0 \
   --feature DIR \
   --seq_len 5000 \
   --train_file train \
@@ -35,12 +35,12 @@ rm -rf checkpoints/${dataset}/${model}/proteus.pth
 cp checkpoints/${dataset}/${model}/max_f1.pth checkpoints/${dataset}/${model}/proteus.pth
 wait
 
-for file_name in test 240327 240410 240709 240816 241209
+for file_name in test day14 day30 day90 day150 day270
 do
     python -u exp/test.py \
       --dataset ${dataset} \
       --model ${model} \
-      --device cuda:7 \
+      --device cuda:0 \
       --test_file ${file_name} \
       --feature DIR \
       --seq_len 5000 \
@@ -52,7 +52,7 @@ do
     python -u exp/proteus.py \
         --dataset ${dataset} \
         --model ${model} \
-        --device cuda:7 \
+        --device cuda:0 \
         --train_file train \
         --test_file ${file_name} \
         --feature DIR \

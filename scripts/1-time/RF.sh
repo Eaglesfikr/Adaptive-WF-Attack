@@ -1,7 +1,7 @@
 dataset=TimeDrift
 model=RF
 
-for filename in train valid test 240327 240410 240709 240816 241209
+for filename in train valid test day14 day30 day90 day150 day270
 do 
     python -u exp/dataset_process/gen_tam.py \
       --dataset ${dataset} \
@@ -30,7 +30,7 @@ rm -rf checkpoints/${dataset}/${model}/proteus.pth
 cp checkpoints/${dataset}/${model}/max_f1.pth checkpoints/${dataset}/${model}/proteus.pth
 wait
 
-for file_name in test 240327 240410 240709 240816 241209
+for file_name in test day14 day30 day90 day150 day270
 do
     python -u exp/test.py \
     --dataset ${dataset} \

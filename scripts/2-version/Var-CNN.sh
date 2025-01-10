@@ -1,4 +1,4 @@
-for dataset in Version1 Version2 Version3 Version4
+for dataset in Version4 #Version1 Version2 Version3 Version4
 do
 model=VarCNN
 

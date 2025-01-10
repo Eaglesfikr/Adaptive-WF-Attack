@@ -25,7 +25,7 @@ python -u exp/train.py \
   --save_metric F1-score \
   --save_name max_f1
 
-for file_name in test us uk japan germany
+for file_name in test USA UK JP DE
 do
     rm -rf checkpoints/${dataset}/${model}/proteus.pth
     cp checkpoints/${dataset}/${model}/max_f1.pth checkpoints/${dataset}/${model}/proteus.pth

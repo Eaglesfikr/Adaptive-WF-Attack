@@ -7,12 +7,12 @@ rm -rf checkpoints/${dataset}/${model}/${ablation}.pth
 cp checkpoints/${dataset}/${model}/max_f1.pth checkpoints/${dataset}/${model}/${ablation}.pth
 wait
 
-for file_name in test 240327 240410 240709 240816 241209
+for file_name in test day14 day30 day90 day150 day270
 do
     python -u exp/test.py \
     --dataset ${dataset} \
     --model ${model} \
-    --device cuda:4 \
+    --device cuda:3 \
     --test_file tam_${file_name} \
     --feature TAM \
     --seq_len 1800 \
@@ -24,7 +24,7 @@ do
     python -u exp/ablation/11_origin.py \
       --dataset ${dataset} \
       --model ${model} \
-      --device cuda:4 \
+      --device cuda:3 \
       --train_file tam_train \
       --test_file tam_${file_name} \
       --feature TAM \

@@ -8,9 +8,7 @@ The **Proteus** is built upon the WFlib library. We need clone the [WFlib](https
 
 ### Install
 ```
-rm -rf wflib
-mv wflib_copy wflib
-cd wflib
+cd wflib_copy
 pip install --user .
 cd ..
 ```

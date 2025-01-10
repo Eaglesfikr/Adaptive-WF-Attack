@@ -16,7 +16,7 @@ python -u exp/train.py \
   --save_metric F1-score \
   --save_name max_f1
 
-for file_name in test us uk japan germany
+for file_name in test USA UK JP DE
 do
     python -u exp/test.py \
     --dataset ${dataset} \

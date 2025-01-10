@@ -7,7 +7,7 @@ rm -rf checkpoints/${dataset}/${model}/${ablation}.pth
 cp checkpoints/${dataset}/${model}/max_f1.pth checkpoints/${dataset}/${model}/${ablation}.pth
 wait
 
-for file_name in test 240327 240410 240709 240816 241209
+for file_name in day270
 do
     python -u exp/test.py \
     --dataset ${dataset} \
