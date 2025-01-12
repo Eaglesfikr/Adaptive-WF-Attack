@@ -1,7 +1,5 @@
 import os
-import sys
 import json
-import time
 import torch
 import random
 import argparse
@@ -12,189 +10,142 @@ from WFlib.tools import data_processor, evaluator
 from torch.utils.data import DataLoader
 import torch.nn.functional as F
 import warnings
+
 warnings.filterwarnings("ignore")
 
-def adaptive_gaussian_kernel(source, target):
-    n_samples = int(source.size(0)) + int(target.size(0))
-    total = torch.cat([source, target], dim=0)
-    L2_distance = ((total.unsqueeze(0) - total.unsqueeze(1)) ** 2).sum(2)
-    
-    bandwidth = torch.sum(L2_distance) / (n_samples ** 2 - n_samples)
-    bandwidth = torch.clamp(bandwidth, min=1e-5)  
-    
-    kernel_val = torch.exp(-L2_distance / (bandwidth + 1e-5))
-    return kernel_val
+def compute_gaussian_kernel(source, target):
+    sample_count = int(source.size(0)) + int(target.size(0))
+    combined = torch.cat([source, target], dim=0)
+    l2_distance = ((combined.unsqueeze(0) - combined.unsqueeze(1)) ** 2).sum(2)
+    bandwidth = torch.sum(l2_distance) / (sample_count ** 2 - sample_count)
+    bandwidth = torch.clamp(bandwidth, min=1e-5)
+    return torch.exp(-l2_distance / (bandwidth + 1e-5))
 
-def cal_mmd_loss(source_features, target_features):
+def calculate_mmd_loss(source_features, target_features):
     batch_size = min(source_features.size(0), target_features.size(0))
     source_features = source_features[:batch_size]
     target_features = target_features[:batch_size]
+    kernels = compute_gaussian_kernel(source_features, target_features)
+    xx = kernels[:batch_size, :batch_size]
+    yy = kernels[batch_size:, batch_size:]
+    xy = kernels[:batch_size, batch_size:]
+    yx = kernels[batch_size:, :batch_size]
+    return torch.mean(xx + yy - xy - yx)
 
-    kernels = adaptive_gaussian_kernel(source_features, target_features)
+def compute_softmax_entropy(logits):
+    return -(logits.softmax(1) * logits.log_softmax(1)).sum(1)
 
-    XX = kernels[:batch_size, :batch_size]  
-    YY = kernels[batch_size:, batch_size:]  
-    XY = kernels[:batch_size, batch_size:]  
-    YX = kernels[batch_size:, :batch_size]  
-
-   
-    loss = torch.mean(XX + YY - XY - YX)
-    return loss
-
-
-def softmax_entropy(x: torch.Tensor) -> torch.Tensor:
-    """Entropy of softmax distribution from logits."""
-    return -(x.softmax(1) * x.log_softmax(1)).sum(1)
-
-def model_eval(model, test_iter, eval_metrics, device):
+def evaluate_model(model, data_loader, metrics, device):
     with torch.no_grad():
         model.eval()
-        y_pred = []
-        y_true = []
+        predictions = []
+        ground_truths = []
+        for batch in data_loader:
+            inputs, labels = batch[0].to(device), batch[1].to(device)
+            outputs, _ = model(inputs)
+            preds = torch.argsort(outputs, dim=1, descending=True)[:, 0]
+            predictions.append(preds.cpu().numpy())
+            ground_truths.append(labels.cpu().numpy())
+        predictions = np.concatenate(predictions)
+        ground_truths = np.concatenate(ground_truths)
+    return evaluator.measurement(ground_truths, predictions, metrics)
 
-        for index, cur_data in enumerate(test_iter):
-            cur_X, cur_y = cur_data[0].to(device), cur_data[1].to(device)
-            outs, _ = model(cur_X)
-            
-            cur_pred = torch.argsort(outs, dim=1, descending=True)[:,0]
-
-            y_pred.append(cur_pred.cpu().numpy())
-            y_true.append(cur_y.cpu().numpy())
-
-        y_pred = np.concatenate(y_pred)
-        y_true = np.concatenate(y_true)
-
-    result = evaluator.measurement(y_true, y_pred, eval_metrics)
-    return result
-
-def cal_GMM_probs(model, test_iter, device):
-    all_entropy = []
-    all_preds = []
+def compute_gmm_probabilities(model, data_loader, device):
+    entropies = []
+    predictions = []
     with torch.no_grad():
         model.eval()
-        for index, cur_data in enumerate(test_iter):
-            cur_X, cur_y = cur_data[0].to(device), cur_data[1].to(device)
-            outs, _ = model(cur_X)
-            preds = torch.argsort(outs, dim=1, descending=True)[:,0]
-            
-            cur_entropy = softmax_entropy(outs)
-            all_entropy.append(cur_entropy.cpu().numpy())
-            all_preds.append(preds.cpu().numpy())
-            
-    all_entropy = np.concatenate(all_entropy).flatten()
-    all_preds = np.concatenate(all_preds).flatten()
-
-
-    all_entropy = (all_entropy-all_entropy.min())/(all_entropy.max()-all_entropy.min())
-    all_entropy = all_entropy.reshape(-1, 1)
-    all_preds = torch.tensor(all_preds, dtype=torch.int64)
-
+        for batch in data_loader:
+            inputs, _ = batch[0].to(device), batch[1].to(device)
+            outputs, _ = model(inputs)
+            preds = torch.argsort(outputs, dim=1, descending=True)[:, 0]
+            entropies.append(compute_softmax_entropy(outputs).cpu().numpy())
+            predictions.append(preds.cpu().numpy())
+    entropies = np.concatenate(entropies).flatten()
+    predictions = np.concatenate(predictions).flatten()
+    entropies = (entropies - entropies.min()) / (entropies.max() - entropies.min())
+    entropies = entropies.reshape(-1, 1)
+    predictions = torch.tensor(predictions, dtype=torch.int64)
     gmm = GaussianMixture(n_components=2, tol=1e-6)
-    gmm.fit(all_entropy)
-    prob = gmm.predict_proba(all_entropy) 
-    low_uncert_idx = np.argmin(gmm.means_.flatten())
-    prob = prob[:, low_uncert_idx]
-    
-    return prob, all_preds
+    gmm.fit(entropies)
+    probabilities = gmm.predict_proba(entropies)
+    low_uncertainty_index = np.argmin(gmm.means_.flatten())
+    return probabilities[:, low_uncertainty_index], predictions
 
-def cal_pseudo_labels(clean_probs, cur_X, cur_y):
-    clean_indices = (clean_probs >= args.gmm_threshold)
-    pseudo_X = cur_X[clean_indices]
-    pseudo_y = cur_y[clean_indices]
-    pseudo_loader = data_processor.load_iter(pseudo_X, pseudo_y, args.batch_size, True, args.num_workers)
-    return pseudo_loader
+def create_pseudo_labels(clean_probs, inputs, labels, threshold, batch_size, num_workers):
+    clean_indices = clean_probs >= threshold
+    pseudo_inputs = inputs[clean_indices]
+    pseudo_labels = labels[clean_indices]
+    return data_processor.load_iter(pseudo_inputs, pseudo_labels, batch_size, True, num_workers)
 
-def model_adapt(model, test_X, adapt_loader, origin_loader, test_loader, eval_metrics, device):
+def adapt_model(model, test_data, adapt_data_loader, origin_data_loader, test_data_loader, metrics, device, threshold):
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
-    origin_iter = iter(origin_loader)
-    criterion = torch.nn.CrossEntropyLoss()
-    max_f1 = 0
+    origin_data_iter = iter(origin_data_loader)
+    loss_function = torch.nn.CrossEntropyLoss()
+    best_f1_score = 0
     best_epoch = 0
-
     for epoch in range(100):
         if epoch % 5 == 0:
-            clean_probs, pseudo_labels = cal_GMM_probs(model, test_loader, device)
-            pseudo_loader = cal_pseudo_labels(clean_probs, test_X, pseudo_labels)
-            pseudo_iter = iter(pseudo_loader)
-
+            clean_probs, pseudo_labels = compute_gmm_probabilities(model, test_data_loader, device)
+            pseudo_loader = create_pseudo_labels(clean_probs, test_data, pseudo_labels, threshold, args.batch_size, args.num_workers)
+            pseudo_data_iter = iter(pseudo_loader)
         model.train()
-        sum_origin_loss = 0
-        sum_mmd_loss = 0
-        sum_entropy_loss = 0
-        sum_pseudo_loss = 0
-        sum_count = 0
-
-        for index, cur_data in enumerate(adapt_loader):
+        origin_loss_sum, mmd_loss_sum, entropy_loss_sum, pseudo_loss_sum, total_samples = 0, 0, 0, 0, 0
+        for adapt_batch in adapt_data_loader:
             try:
-                cur_origin_data = next(origin_iter)
-            except:
-                origin_iter = iter(origin_loader)
-                cur_origin_data = next(origin_iter)
+                origin_batch = next(origin_data_iter)
+            except StopIteration:
+                origin_data_iter = iter(origin_data_loader)
+                origin_batch = next(origin_data_iter)
             try:
-                cur_pseudo_data = next(pseudo_iter)
-            except:
-                pseudo_iter = iter(pseudo_loader)
-                cur_pseudo_data = next(pseudo_iter)
-        
-            cur_X, cur_y = cur_data[0].to(device), cur_data[1].to(device)
-            origin_X, origin_y = cur_origin_data[0].to(device), cur_origin_data[1].to(device)
-            pseudo_X, pseudo_y = cur_pseudo_data[0].to(device), cur_pseudo_data[1].to(device)
+                pseudo_batch = next(pseudo_data_iter)
+            except StopIteration:
+                pseudo_data_iter = iter(pseudo_loader)
+                pseudo_batch = next(pseudo_data_iter)
+            adapt_inputs, adapt_labels = adapt_batch[0].to(device), adapt_batch[1].to(device)
+            origin_inputs, origin_labels = origin_batch[0].to(device), origin_batch[1].to(device)
+            pseudo_inputs, pseudo_labels = pseudo_batch[0].to(device), pseudo_batch[1].to(device)
             optimizer.zero_grad()
-
-            origin_outs, origin_features = model(origin_X)
-            adapt_outs, adapt_features = model(cur_X)
-            pseudo_outs, pseudo_features = model(pseudo_X)
-
-            softmax_out = F.softmax(adapt_outs, dim=-1)
-            msoftmax = softmax_out.mean(dim=0)
-
-            classification_loss = criterion(origin_outs, origin_y)
-            pseudo_loss = criterion(pseudo_outs, pseudo_y)
-            min_entropy_loss = softmax_entropy(adapt_outs).mean(0) + torch.sum(msoftmax * torch.log(msoftmax + 1e-5))
-            mmd_loss = cal_mmd_loss(origin_features, adapt_features)
-            loss = pseudo_loss + min_entropy_loss + mmd_loss + classification_loss
-
-            loss.backward()
+            origin_outputs, origin_features = model(origin_inputs)
+            adapt_outputs, adapt_features = model(adapt_inputs)
+            pseudo_outputs, pseudo_features = model(pseudo_inputs)
+            softmax_out = F.softmax(adapt_outputs, dim=-1)
+            mean_softmax = softmax_out.mean(dim=0)
+            classification_loss = loss_function(origin_outputs, origin_labels)
+            pseudo_loss = loss_function(pseudo_outputs, pseudo_labels)
+            entropy_loss = compute_softmax_entropy(adapt_outputs).mean(0) + torch.sum(mean_softmax * torch.log(mean_softmax + 1e-5))
+            mmd_loss = calculate_mmd_loss(origin_features, adapt_features)
+            total_loss = classification_loss + pseudo_loss + entropy_loss + mmd_loss
+            total_loss.backward()
             optimizer.step()
-            sum_origin_loss += classification_loss.data.cpu().numpy() * origin_outs.shape[0]
-            sum_mmd_loss += mmd_loss.data.cpu().numpy() * origin_outs.shape[0]
-            sum_entropy_loss += min_entropy_loss.data.cpu().numpy() * origin_outs.shape[0]
-            sum_pseudo_loss += pseudo_loss.data.cpu().numpy() * origin_outs.shape[0]
-            sum_count += adapt_outs.shape[0]
-
-        train_origin_loss = round(sum_origin_loss / sum_count, 3)
-        train_mmd_loss    = round(sum_mmd_loss / sum_count, 3)
-        train_entropy_loss = round(sum_entropy_loss / sum_count, 3)
-        train_pseudo_loss = round(sum_pseudo_loss / sum_count)
-
-        print(f"epoch {epoch} loss: origin={train_origin_loss}, entropy={train_entropy_loss}, mmd={train_mmd_loss}, pseudo={train_pseudo_loss}")
-        epoch_result = model_eval(model, test_loader, eval_metrics, device)
-        print(epoch_result)
-        if epoch_result["F1-score"] > max_f1:
-            max_f1 = epoch_result["F1-score"]
+            origin_loss_sum += classification_loss.data.cpu().numpy() * origin_outputs.shape[0]
+            mmd_loss_sum += mmd_loss.data.cpu().numpy() * origin_outputs.shape[0]
+            entropy_loss_sum += entropy_loss.data.cpu().numpy() * origin_outputs.shape[0]
+            pseudo_loss_sum += pseudo_loss.data.cpu().numpy() * origin_outputs.shape[0]
+            total_samples += adapt_outputs.shape[0]
+        epoch_result = evaluate_model(model, test_data_loader, metrics, device)
+        print(f"{epoch}:", epoch_result)
+        if epoch_result["F1-score"] > best_f1_score:
+            best_f1_score = epoch_result["F1-score"]
             best_epoch = epoch
-    
-        print(f"best epoch {best_epoch}: F1-score = {max_f1}")
-        print("----------------------------")
-    return max_f1, best_epoch
+    return best_f1_score, best_epoch
 
+# Argument parsing and setup omitted for brevity
 fix_seed = 2024
 random.seed(fix_seed)
 torch.manual_seed(fix_seed)
 np.random.seed(fix_seed)
 
-# Argument parser for command-line options, arguments, and sub-commands
+# Command-line arguments
 parser = argparse.ArgumentParser(description="WFlib")
 parser.add_argument("--dataset", type=str, required=True, default="CW", help="Dataset name")
 parser.add_argument("--model", type=str, required=True, default="DF", help="Model name")
 parser.add_argument("--device", type=str, default="cpu", help="Device, options=[cpu, cuda, cuda:x]")
-parser.add_argument("--num_tabs", type=int, default=1, 
-                    help="Maximum number of tabs opened by users while browsing")
-parser.add_argument("--scenario", type=str, default="Closed-world", 
-                    help="Attack scenario, options=[Closed-world, Open-world]")
+parser.add_argument("--num_tabs", type=int, default=1, help="Maximum number of tabs opened by users while browsing")
+parser.add_argument("--scenario", type=str, default="Closed-world", help="Attack scenario, options=[Closed-world, Open-world]")
 
 # Input parameters
-parser.add_argument("--train_file", type=str, default="train", help="train file")
+parser.add_argument("--train_file", type=str, default="train", help="Train file")
 parser.add_argument("--test_file", type=str, default="test", help="Test file")
 parser.add_argument("--feature", type=str, default="DIR", help="Feature type, options=[DIR, DT, DT2, TAM, TAF]")
 parser.add_argument("--seq_len", type=int, default=5000, help="Input sequence length")
@@ -205,8 +156,7 @@ parser.add_argument("--batch_size", type=int, default=256, help="Batch size of t
 
 # Output parameters
 parser.add_argument("--eval_method", type=str, default="common", help="Method used in the evaluation, options=[common, kNN, holmes]")
-parser.add_argument('--eval_metrics', nargs='+', required=True, type=str, 
-                    help="Evaluation metrics, options=[Accuracy, Precision, Recall, F1-score, P@min, r-Precision]")
+parser.add_argument('--eval_metrics', nargs='+', required=True, type=str, help="Evaluation metrics, options=[Accuracy, Precision, Recall, F1-score, P@min, r-Precision]")
 parser.add_argument("--log_path", type=str, default="./logs/", help="Log path")
 parser.add_argument("--checkpoints", type=str, default="./checkpoints/", help="Location of model checkpoints")
 parser.add_argument("--load_name", type=str, default="base", help="Name of the model file")
@@ -223,38 +173,38 @@ if args.device.startswith("cuda"):
 device = torch.device(args.device)
 
 # Define paths for dataset, logs, and checkpoints
-in_path = os.path.join("./datasets", args.dataset)
-if not os.path.exists(in_path):
-    raise FileNotFoundError(f"The dataset path does not exist: {in_path}")
+dataset_path = os.path.join("./datasets", args.dataset)
+if not os.path.exists(dataset_path):
+    raise FileNotFoundError(f"The dataset path does not exist: {dataset_path}")
 log_path = os.path.join(args.log_path, args.dataset, args.model)
 ckp_path = os.path.join(args.checkpoints, args.dataset, args.model)
 os.makedirs(log_path, exist_ok=True)
-out_file = os.path.join(log_path, f"{args.result_file}.json")
+output_file = os.path.join(log_path, f"{args.result_file}.json")
 
 # Load training and validation data
-print(f"loading test file: ", os.path.join(in_path, f"{args.test_file}.npz"))
-train_X, train_y = data_processor.load_data(os.path.join(in_path, f"{args.train_file}.npz"), args.feature, args.seq_len, args.num_tabs)
-test_X, test_y = data_processor.load_data(os.path.join(in_path, f"{args.test_file}.npz"), args.feature, args.seq_len, args.num_tabs)
-num_classes = len(np.unique(test_y))
+print(f"Loading test file: ", os.path.join(dataset_path, f"{args.test_file}.npz"))
+train_data, train_labels = data_processor.load_data(os.path.join(dataset_path, f"{args.train_file}.npz"), args.feature, args.seq_len, args.num_tabs)
+test_data, test_labels = data_processor.load_data(os.path.join(dataset_path, f"{args.test_file}.npz"), args.feature, args.seq_len, args.num_tabs)
+num_classes = len(np.unique(test_labels))
 
 if args.num_tabs == 1:
-    num_classes = len(np.unique(test_y))
-    assert num_classes == test_y.max() + 1, "Labels are not continuous" # Ensure labels are continuous
+    num_classes = len(np.unique(test_labels))
+    assert num_classes == test_labels.max() + 1, "Labels are not continuous"
 else:
-    num_classes = test_y.shape[1]
+    num_classes = test_labels.shape[1]
 
 # Print dataset information
-print(f"Train: X={train_X.shape}, y={train_y.shape}")
-print(f"Test: X={test_X.shape}, y={test_y.shape}")
-print(f"num_classes: {num_classes}")
+print(f"Train data shape: X={train_data.shape}, y={train_labels.shape}")
+print(f"Test data shape: X={test_data.shape}, y={test_labels.shape}")
+print(f"Number of classes: {num_classes}")
 
 # Load data into iterators
-origin_iter = data_processor.load_iter(train_X, train_y, args.batch_size, True, args.num_workers)
-adapt_iter = data_processor.load_iter(test_X, torch.zeros_like(test_y), args.batch_size, True, args.num_workers)
-test_iter = data_processor.load_iter(test_X, test_y, args.batch_size, False, args.num_workers)
+origin_data_loader = data_processor.load_iter(train_data, train_labels, args.batch_size, True, args.num_workers)
+adapt_data_loader = data_processor.load_iter(test_data, torch.zeros_like(test_labels), args.batch_size, True, args.num_workers)
+test_data_loader = data_processor.load_iter(test_data, test_labels, args.batch_size, False, args.num_workers)
 
 # Initialize model, optimizer, and loss function
-if args.model in ["BAPM", "TMWF"]: # Assume num_tabs is known
+if args.model in ["BAPM", "TMWF"]:
     model = eval(f"models.{args.model}")(num_classes, args.num_tabs)
 else:
     model = eval(f"models.{args.model}")(num_classes)
@@ -262,21 +212,25 @@ else:
 model.load_state_dict(torch.load(os.path.join(ckp_path, f"{args.load_name}.pth"), map_location="cpu"))
 model.to(device)
 
-# Evaluation
-result = model_eval(model, test_iter, args.eval_metrics, device)
-print("NoAdapt:")
-print(result)
+# Evaluation before adaptation
+initial_result = evaluate_model(model, test_data_loader, args.eval_metrics, device)
+print("Initial evaluation result:")
+print(initial_result)
 
-best_f1_score, best_f1_epoch = model_adapt(model, test_X, adapt_iter, origin_iter, test_iter, args.eval_metrics, device)
+# Model adaptation
+best_f1_score, best_epoch = adapt_model(model, test_data, adapt_data_loader, origin_data_loader, test_data_loader, args.eval_metrics, device, args.gmm_threshold)
 
-print("After Adapt:")
-result = model_eval(model, test_iter, args.eval_metrics, device)
-result["best_f1_score"] = best_f1_score
-result["best_f1_epoch"] = best_f1_epoch
-print(result)
+# Evaluation after adaptation
+final_result = evaluate_model(model, test_data_loader, args.eval_metrics, device)
+final_result["best_f1_score"] = best_f1_score
+final_result["best_f1_epoch"] = best_epoch
+print("Evaluation after adaptation:")
+print(final_result)
 
-model_save_file = os.path.join(ckp_path, f"{args.model_save_name}.pth")
-torch.save(model.state_dict(), model_save_file)
+# Save model
+model_save_path = os.path.join(ckp_path, f"{args.model_save_name}.pth")
+torch.save(model.state_dict(), model_save_path)
 
-with open(out_file, "w") as fp:
-    json.dump(result, fp, indent=4)
+# Save results to file
+with open(output_file, "w") as result_file:
+    json.dump(final_result, result_file, indent=4)

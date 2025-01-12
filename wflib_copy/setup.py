@@ -8,7 +8,7 @@ setup(
     name='WFlib',
     version='0.1',
     description='Library for website fingerprinting attacks',
-    author='Xinhao Deng',
+    author='xx',
     packages=[
         "WFlib",
         "WFlib.models",

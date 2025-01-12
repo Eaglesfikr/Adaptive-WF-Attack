@@ -1,22 +1,60 @@
-# Adaptive-WF-Attack
+# Enhancing Website Fingerprinting Attacks against Traffic Drift
 
-The implementation code of Proteus. Proteus dynamically adapts the model to accommodate shifts in network traffic patterns, improving the resilience of website fingerprinting techniques. 
+
+This paper introduces Proteus, an adaptive framework that enhances the robustness of website fingerprinting (WF) attacks against real-world traffic drift by fine-tuning models with unlabeled traffic.
+
+
+## Datasets
+
+From March to December 2024, we collected over 300 thousand real-world Tor traffic under various traffic drift scenarios. 
+
+Our dataset includes six distinct categories of data, which can be downloaded via the provided [link](https://drive.google.com/drive/folders/1itVf6TYjGWvGrVQQsxLdnXk7E_AVTL1m).
+
+
+```sh
+mkdir datasets
+```
+
+Download and extract all datasets, then move them to the `datasets` folder.
 
 ## Usage
 
 ### Install
-```
+
+```sh
 cd wflib_copy
 pip install --user .
 cd ..
 ```
 
-### Dataset Split
+### Experiments
+
+- Section 5.2
 ```
-python exp/dataset_process/dataset_split.py --infile datasets/TimeDrift/240313.npz
+bash scripts/TemporalDrift/Proteus.sh
 ```
 
-### Run Proteus
+- Section 5.3
 ```
-bash scripts/TimeDrift/Proteus.sh
+bash scripts/VersionDrift/Proteus.sh
+```
+
+- Section 5.4
+```
+scripts/NetworkDrift/Proteus.sh
+```
+
+- Section 5.5
+```
+scripts/BehaviorDrift/Proteus.sh
+```
+
+- Section 5.6
+```
+bash scripts/OpenWorld/Proteus.sh
+```
+
+- Section 5.7
+```
+bash scripts/Defense/Proteus.sh
 ```

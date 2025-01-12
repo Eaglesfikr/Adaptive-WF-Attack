@@ -1,5 +1,4 @@
-for dataset in VersionDrift/045 VersionDrift/046 VersionDrift/047 VersionDrift/048
-do
+dataset=BehaviorDrift
 model=TF
 
 python -u exp/train.py \
@@ -17,7 +16,7 @@ python -u exp/train.py \
   --save_metric F1-score \
   --save_name max_f1
 
-for file_name in drift
+for file_name in test subpage
 do
     python -u exp/test.py \
     --dataset ${dataset} \
@@ -31,5 +30,4 @@ do
     --eval_metrics Accuracy Precision Recall F1-score \
     --load_name max_f1 \
     --result_file ${file_name}
-done
 done

@@ -1,11 +1,10 @@
-for dataset in VersionDrift/045 VersionDrift/046 VersionDrift/047 VersionDrift/048
-do
+dataset=TemporalDrift
 model=TF
 
 python -u exp/train.py \
   --dataset ${dataset} \
   --model ${model} \
-  --device cuda:7 \
+  --device cuda:6 \
   --feature DIR \
   --seq_len 5000 \
   --train_epochs 100 \
@@ -17,12 +16,12 @@ python -u exp/train.py \
   --save_metric F1-score \
   --save_name max_f1
 
-for file_name in drift
+for file_name in test day14 day30 day90 day150 day270
 do
     python -u exp/test.py \
     --dataset ${dataset} \
     --model ${model} \
-    --device cuda:7 \
+    --device cuda:6 \
     --test_file ${file_name} \
     --feature DIR \
     --seq_len 5000 \
@@ -31,5 +30,4 @@ do
     --eval_metrics Accuracy Precision Recall F1-score \
     --load_name max_f1 \
     --result_file ${file_name}
-done
 done
