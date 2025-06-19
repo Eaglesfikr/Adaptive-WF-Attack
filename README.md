@@ -8,7 +8,7 @@ This paper introduces Proteus, an adaptive framework that enhances the robustnes
 
 From March to December 2024, we collected over 300 thousand real-world Tor traffic under various traffic drift scenarios. 
 
-Our dataset includes six distinct categories of data, which will be released on GitHub upon the paper acceptance.
+Our dataset includes six distinct categories of data, which can be downloaded via the provided [link](https://drive.google.com/drive/folders/1bAqAvvDrY2wrY4EU-Rxm9mv9hsIvKwGk).
 
 
 ```sh
