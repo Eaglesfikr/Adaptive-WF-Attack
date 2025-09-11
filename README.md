@@ -32,6 +32,8 @@ pip install --user .
 cd ..
 ```
 
+More details can be found in [WFlib](https://github.com/Xinhao-Deng/Website-Fingerprinting-Library).
+
 ---
 
 ## 🧪 Running Experiments
