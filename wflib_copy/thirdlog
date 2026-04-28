@@ -1,0 +1,243 @@
++-----------------------------------------------AutoDL-----------------------------------------------------+
+[32m目录说明:[0m
+╔═════════════════╦════════╦════╦═════════════════════════════════════════════════════════════════════════╗
+║目录             ║名称    ║速度║说明                                                                     ║
+╠═════════════════╬════════╬════╬═════════════════════════════════════════════════════════════════════════╣
+║/                ║系 统 盘║一般║实例关机数据不会丢失，可存放代码等。会随保存镜像一起保存。               ║
+║/root/autodl-tmp ║数 据 盘║ 快 ║实例关机数据不会丢失，可存放读写IO要求高的数据。但不会随保存镜像一起保存 ║
+║/root/autodl-fs  ║文件存储║一般║可以实现多实例间的文件同步共享，不受实例开关机和保存镜像的影响。         ║
+╚═════════════════╩════════╩════╩═════════════════════════════════════════════════════════════════════════╝
+[32mCPU[0m ：12 核心
+[32m内存[0m：90 GB
+[32mGPU [0m：NVIDIA vGPU-32GB, 1
+[32m存储[0m：
+[32m  系 统 盘/               [0m：22% 6.6G/30G
+[32m  数 据 盘/root/autodl-tmp[0m：28% 14G/50G
+[32m  文件存储/root/autodl-fs [0m：0% 0/200G
++----------------------------------------------------------------------------------------------------------+
+[31m*注意: [0m
+[31m1.系统盘较小请将大的数据存放于数据盘或文件存储中，重置系统时数据盘和文件存储中的数据不受影响[0m
+[31m2.清理系统盘请参考：https://www.autodl.com/docs/qa1/[0m
+[31m3.终端中长期执行命令请使用screen等工具开后台运行，确保程序不受SSH连接中断影响：https://www.autodl.com/docs/daemon/[0m
+[?2004h(base) root@autodl-container-94144787f5-d0478b55:~/autodl-tmp/Adaptive-WF-Attack/wflib_copy# [KM(base) root@autodl-container-94144787f5-d0478b55:~/autodl-tmp/Adaptive-WF-Attack/wflib_copy# ls
+[?2004lLICENSE          [0m[01;34mWFlib[0m           [01;34mbuild[0m        [01;34mcheckpoints2[0m  [01;34mexp[0m      screenlog.0  second_log  thirdlog    频域转化数据集.ipynb
+RF提取TNS.ipynb  [01;34mWFlib.egg-info[0m  [01;34mcheckpoints[0m  [01;34mdatasets[0m      [01;34mfigures[0m  [01;34mscripts[0m      setup.py    频域.ipynb
+[?2004h(base) root@autodl-container-94144787f5-d0478b55:~/autodl-tmp/Adaptive-WF-Attack/wflib_copy# conda activate wf
+[?2004l[?2004h(wf) root@autodl-container-94144787f5-d0478b55:~/autodl-tmp/Adaptive-WF-Attack/wflib_copy# pt[Kython thirdlog [K[K[K[K[K[K[K[K[K../exp/third_my.py 
+[?2004l  File "../exp/third_my.py", line 347
+    train_iter = .load_iter(train_X, train_y, args.batch_size, True, args.num_workers)
+                 ^
+SyntaxError: invalid syntax
+[?2004h(wf) root@autodl-container-94144787f5-d0478b55:~/autodl-tmp/Adaptive-WF-Attack/wflib_copy# python ../exp/third_my.py 
+[?2004lTraceback (most recent call last):
+  File "../exp/third_my.py", line 318, in <module>
+    in_path = os.path.join("./datasets", args.dataset)
+NameError: name 'os' is not defined
+[?2004h(wf) root@autodl-container-94144787f5-d0478b55:~/autodl-tmp/Adaptive-WF-Attack/wflib_copy# python ../exp/third_my.py 
+[?2004lloading train file:  ./datasets/TemporalDrift/train.npz
+Traceback (most recent call last):
+  File "../exp/third_my.py", line 337, in <module>
+    train_X, train_y = load_data(os.path.join(in_path, f"{args.train_file}.npz"), args.feature, args.seq_len, args.num_tabs)
+  File "../exp/third_my.py", line 156, in load_data
+    X = length_align(X, seq_len)
+NameError: name 'length_align' is not defined
+[?2004h(wf) root@autodl-container-94144787f5-d0478b55:~/autodl-tmp/Adaptive-WF-Attack/wflib_copy# python ../exp/third_my.py [9Pconda activate wfls[Kpython ../exp/my_test-f.py[5P-f.py_test.py[5P.py[2Pconda activate wfls[Kconda activate wfpython ../exp/my.py_test.py[3P-f.py_test-f.pyls[Kconda activate wfpython ../exp/third_my.py [Kpython ../exp/third_my.py 
+[?2004lloading train file:  ./datasets/TemporalDrift/train.npz
+Train: X=torch.Size([19439, 1, 5000]), y=torch.Size([19439])
+Valid: X=torch.Size([2160, 1, 5000]), y=torch.Size([2160])
+num_classes: 102
+Traceback (most recent call last):
+  File "../exp/third_my.py", line 365, in <module>
+    model = TFModel(num_classes=102).cuda()
+  File "../exp/third_my.py", line 138, in __init__
+    self.encoder = TFEncoder()
+  File "../exp/third_my.py", line 113, in __init__
+    self.time_encoder = DFEncoder()
+NameError: name 'DFEncoder' is not defined
+[?2004h(wf) root@autodl-container-94144787f5-d0478b55:~/autodl-tmp/Adaptive-WF-Attack/wflib_copy# python ../exp/third_my.py 
+[?2004l/root/.local/lib/python3.8/site-packages/timm/models/layers/__init__.py:49: FutureWarning: Importing from timm.models.layers is deprecated, please import via timm.layers
+  warnings.warn(f"Importing from {__name__} is deprecated, please import via timm.layers", FutureWarning)
+loading train file:  ./datasets/TemporalDrift/train.npz
+Traceback (most recent call last):
+  File "../exp/third_my.py", line 342, in <module>
+    train_X, train_y = load_data(os.path.join(in_path, f"{args.train_file}.npz"), args.feature, args.seq_len, args.num_tabs)
+  File "../exp/third_my.py", line 161, in load_data
+    X = length_align(X, seq_len)
+NameError: name 'length_align' is not defined
+[?2004h(wf) root@autodl-container-94144787f5-d0478b55:~/autodl-tmp/Adaptive-WF-Attack/wflib_copy# python ../exp/third_my.py 
+[?2004l/root/.local/lib/python3.8/site-packages/timm/models/layers/__init__.py:49: FutureWarning: Importing from timm.models.layers is deprecated, please import via timm.layers
+  warnings.warn(f"Importing from {__name__} is deprecated, please import via timm.layers", FutureWarning)
+loading train file:  ./datasets/TemporalDrift/train.npz
+Traceback (most recent call last):
+  File "../exp/third_my.py", line 339, in <module>
+    train_X, train_y = load_data(os.path.join(in_path, f"{args.train_file}.npz"), args.feature, args.seq_len, args.num_tabs)
+NameError: name 'load_data' is not defined
+[?2004h(wf) root@autodl-container-94144787f5-d0478b55:~/autodl-tmp/Adaptive-WF-Attack/wflib_copy# python ../exp/third_my.py 
+[?2004l/root/.local/lib/python3.8/site-packages/timm/models/layers/__init__.py:49: FutureWarning: Importing from timm.models.layers is deprecated, please import via timm.layers
+  warnings.warn(f"Importing from {__name__} is deprecated, please import via timm.layers", FutureWarning)
+loading train file:  ./datasets/TemporalDrift/train.npz
+Train: X=torch.Size([19439, 1, 5000]), y=torch.Size([19439])
+Valid: X=torch.Size([2160, 1, 5000]), y=torch.Size([2160])
+num_classes: 102
+Traceback (most recent call last):
+  File "../exp/third_my.py", line 357, in <module>
+    model = TFModel(num_classes=102).cuda()
+  File "../exp/third_my.py", line 140, in __init__
+    self.encoder = TFEncoder()
+  File "../exp/third_my.py", line 115, in __init__
+    self.time_encoder = DFEncoder()
+NameError: name 'DFEncoder' is not defined
+[?2004h(wf) root@autodl-container-94144787f5-d0478b55:~/autodl-tmp/Adaptive-WF-Attack/wflib_copy# python ../exp/third_my.py [9Pconda activate wfls[Kpython ../exp/my_test-f.py[5P-f.py_test.py[5P.py[2Pconda activate wfls[Kconda activate wfpython ../exp/my.py_test.py[3P-f.py_test-f.pyls[Kconda activate wfpython ../exp/third_my.py [Kpython ../exp/third_my.py 
+[?2004l/root/.local/lib/python3.8/site-packages/timm/models/layers/__init__.py:49: FutureWarning: Importing from timm.models.layers is deprecated, please import via timm.layers
+  warnings.warn(f"Importing from {__name__} is deprecated, please import via timm.layers", FutureWarning)
+loading train file:  ./datasets/TemporalDrift/train.npz
+Train: X=torch.Size([19439, 1, 5000]), y=torch.Size([19439])
+Valid: X=torch.Size([2160, 1, 5000]), y=torch.Size([2160])
+num_classes: 102
+epoch 0: train_loss = 3.6086
+Traceback (most recent call last):
+  File "../exp/third_my.py", line 360, in <module>
+    model_train(
+  File "../exp/third_my.py", line 277, in model_train
+    valid_result = measurement(valid_true, valid_pred, eval_metrics)
+NameError: name 'measurement' is not defined
+[?2004h(wf) root@autodl-container-94144787f5-d0478b55:~/autodl-tmp/Adaptive-WF-Attack/wflib_copy# python ../exp/third_my.py [9Pconda activate wfls[Kpython ../exp/my_test-f.py[5P-f.py_test.py[5P.py
+[?2004l/root/.local/lib/python3.8/site-packages/timm/models/layers/__init__.py:49: FutureWarning: Importing from timm.models.layers is deprecated, please import via timm.layers
+  warnings.warn(f"Importing from {__name__} is deprecated, please import via timm.layers", FutureWarning)
+./checkpoints/TemporalDrift/DF/max_f1_DT.pth has been generated.
+[?2004h(wf) root@autodl-container-94144787f5-d0478b55:~/autodl-tmp/Adaptive-WF-Attack/wflib_copy# python ../exp/my.py[1P.py[1P.pyt.pyh.pyi.pyr.pyd_my.py.py[1P.py[1P.py[1Ppy
+[?2004l/root/.local/lib/python3.8/site-packages/timm/models/layers/__init__.py:49: FutureWarning: Importing from timm.models.layers is deprecated, please import via timm.layers
+  warnings.warn(f"Importing from {__name__} is deprecated, please import via timm.layers", FutureWarning)
+loading train file:  ./datasets/TemporalDrift/train.npz
+Train: X=torch.Size([19439, 1, 5000]), y=torch.Size([19439])
+Valid: X=torch.Size([2160, 1, 5000]), y=torch.Size([2160])
+num_classes: 102
+epoch 0: train_loss = 3.5517
+Traceback (most recent call last):
+  File "../exp/third_my.py", line 360, in <module>
+    model_train(
+  File "../exp/third_my.py", line 277, in model_train
+    valid_result = measurement(valid_true, valid_pred, eval_metrics)
+NameError: name 'measurement' is not defined
+[?2004h(wf) root@autodl-container-94144787f5-d0478b55:~/autodl-tmp/Adaptive-WF-Attack/wflib_copy# python ../exp/third_my.py
+[?2004l/root/.local/lib/python3.8/site-packages/timm/models/layers/__init__.py:49: FutureWarning: Importing from timm.models.layers is deprecated, please import via timm.layers
+  warnings.warn(f"Importing from {__name__} is deprecated, please import via timm.layers", FutureWarning)
+loading train file:  ./datasets/TemporalDrift/train.npz
+Train: X=torch.Size([19439, 1, 5000]), y=torch.Size([19439])
+Valid: X=torch.Size([2160, 1, 5000]), y=torch.Size([2160])
+num_classes: 102
+epoch 0: train_loss = 3.6232
+/root/.local/lib/python3.8/site-packages/sklearn/metrics/_classification.py:1471: UndefinedMetricWarning: Precision is ill-defined and being set to 0.0 in labels with no predicted samples. Use `zero_division` parameter to control this behavior.
+  _warn_prf(average, modifier, msg_start, len(result))
+0: {'Accuracy': 0.1338, 'Precision': 0.0815, 'Recall': 0.1331, 'F1-score': 0.0846}
+best epoch 0: F1-score=0.0846
+epoch 1: train_loss = 2.9443
+/root/.local/lib/python3.8/site-packages/sklearn/metrics/_classification.py:1471: UndefinedMetricWarning: Precision is ill-defined and being set to 0.0 in labels with no predicted samples. Use `zero_division` parameter to control this behavior.
+  _warn_prf(average, modifier, msg_start, len(result))
+1: {'Accuracy': 0.2356, 'Precision': 0.2059, 'Recall': 0.2335, 'F1-score': 0.1938}
+best epoch 1: F1-score=0.1938
+epoch 2: train_loss = 2.5624
+/root/.local/lib/python3.8/site-packages/sklearn/metrics/_classification.py:1471: UndefinedMetricWarning: Precision is ill-defined and being set to 0.0 in labels with no predicted samples. Use `zero_division` parameter to control this behavior.
+  _warn_prf(average, modifier, msg_start, len(result))
+2: {'Accuracy': 0.3222, 'Precision': 0.3799, 'Recall': 0.3211, 'F1-score': 0.288}
+best epoch 2: F1-score=0.288
+epoch 3: train_loss = 2.2649
+/root/.local/lib/python3.8/site-packages/sklearn/metrics/_classification.py:1471: UndefinedMetricWarning: Precision is ill-defined and being set to 0.0 in labels with no predicted samples. Use `zero_division` parameter to control this behavior.
+  _warn_prf(average, modifier, msg_start, len(result))
+3: {'Accuracy': 0.3773, 'Precision': 0.4075, 'Recall': 0.3759, 'F1-score': 0.3482}
+best epoch 3: F1-score=0.3482
+epoch 4: train_loss = 2.0500
+4: {'Accuracy': 0.4338, 'Precision': 0.4601, 'Recall': 0.4339, 'F1-score': 0.4142}
+best epoch 4: F1-score=0.4142
+epoch 5: train_loss = 1.8783
+/root/.local/lib/python3.8/site-packages/sklearn/metrics/_classification.py:1471: UndefinedMetricWarning: Precision is ill-defined and being set to 0.0 in labels with no predicted samples. Use `zero_division` parameter to control this behavior.
+  _warn_prf(average, modifier, msg_start, len(result))
+5: {'Accuracy': 0.4528, 'Precision': 0.4944, 'Recall': 0.4519, 'F1-score': 0.4376}
+best epoch 5: F1-score=0.4376
+epoch 6: train_loss = 1.7366
+6: {'Accuracy': 0.4412, 'Precision': 0.4999, 'Recall': 0.4409, 'F1-score': 0.4297}
+best epoch 5: F1-score=0.4376
+epoch 7: train_loss = 1.6084
+7: {'Accuracy': 0.5389, 'Precision': 0.5721, 'Recall': 0.5384, 'F1-score': 0.5295}
+best epoch 7: F1-score=0.5295
+epoch 8: train_loss = 1.5028
+/root/.local/lib/python3.8/site-packages/sklearn/metrics/_classification.py:1471: UndefinedMetricWarning: Precision is ill-defined and being set to 0.0 in labels with no predicted samples. Use `zero_division` parameter to control this behavior.
+  _warn_prf(average, modifier, msg_start, len(result))
+8: {'Accuracy': 0.5208, 'Precision': 0.5692, 'Recall': 0.5199, 'F1-score': 0.5142}
+best epoch 7: F1-score=0.5295
+epoch 9: train_loss = 1.3910
+9: {'Accuracy': 0.5745, 'Precision': 0.5959, 'Recall': 0.5738, 'F1-score': 0.5667}
+best epoch 9: F1-score=0.5667
+epoch 10: train_loss = 1.3086
+10: {'Accuracy': 0.5944, 'Precision': 0.6214, 'Recall': 0.5941, 'F1-score': 0.5847}
+best epoch 10: F1-score=0.5847
+epoch 11: train_loss = 1.2606
+/root/.local/lib/python3.8/site-packages/sklearn/metrics/_classification.py:1471: UndefinedMetricWarning: Precision is ill-defined and being set to 0.0 in labels with no predicted samples. Use `zero_division` parameter to control this behavior.
+  _warn_prf(average, modifier, msg_start, len(result))
+11: {'Accuracy': 0.6032, 'Precision': 0.6119, 'Recall': 0.6027, 'F1-score': 0.591}
+best epoch 11: F1-score=0.591
+epoch 12: train_loss = 1.1749
+12: {'Accuracy': 0.6287, 'Precision': 0.6475, 'Recall': 0.6286, 'F1-score': 0.6247}
+best epoch 12: F1-score=0.6247
+epoch 13: train_loss = 1.1128
+13: {'Accuracy': 0.6394, 'Precision': 0.6533, 'Recall': 0.6384, 'F1-score': 0.6318}
+best epoch 13: F1-score=0.6318
+epoch 14: train_loss = 1.0660
+14: {'Accuracy': 0.6426, 'Precision': 0.6657, 'Recall': 0.642, 'F1-score': 0.6392}
+best epoch 14: F1-score=0.6392
+epoch 15: train_loss = 1.0294
+15: {'Accuracy': 0.6292, 'Precision': 0.6442, 'Recall': 0.6284, 'F1-score': 0.6226}
+best epoch 14: F1-score=0.6392
+epoch 16: train_loss = 0.9668
+16: {'Accuracy': 0.6412, 'Precision': 0.6649, 'Recall': 0.6416, 'F1-score': 0.6351}
+best epoch 14: F1-score=0.6392
+epoch 17: train_loss = 0.9305
+17: {'Accuracy': 0.6398, 'Precision': 0.6648, 'Recall': 0.6398, 'F1-score': 0.6315}
+best epoch 14: F1-score=0.6392
+epoch 18: train_loss = 0.8870
+18: {'Accuracy': 0.6593, 'Precision': 0.6934, 'Recall': 0.659, 'F1-score': 0.6566}
+best epoch 18: F1-score=0.6566
+epoch 19: train_loss = 0.8528
+19: {'Accuracy': 0.6792, 'Precision': 0.6982, 'Recall': 0.6787, 'F1-score': 0.6739}
+best epoch 19: F1-score=0.6739
+epoch 20: train_loss = 0.8070
+20: {'Accuracy': 0.6648, 'Precision': 0.6922, 'Recall': 0.6646, 'F1-score': 0.6647}
+best epoch 19: F1-score=0.6739
+epoch 21: train_loss = 0.7813
+21: {'Accuracy': 0.6741, 'Precision': 0.6995, 'Recall': 0.6739, 'F1-score': 0.675}
+best epoch 21: F1-score=0.675
+epoch 22: train_loss = 0.7555
+22: {'Accuracy': 0.6704, 'Precision': 0.6857, 'Recall': 0.67, 'F1-score': 0.6638}
+best epoch 21: F1-score=0.675
+epoch 23: train_loss = 0.6974
+23: {'Accuracy': 0.6912, 'Precision': 0.7041, 'Recall': 0.6906, 'F1-score': 0.6873}
+best epoch 23: F1-score=0.6873
+epoch 24: train_loss = 0.6870
+24: {'Accuracy': 0.7051, 'Precision': 0.7166, 'Recall': 0.7046, 'F1-score': 0.6982}
+best epoch 24: F1-score=0.6982
+epoch 25: train_loss = 0.6703
+25: {'Accuracy': 0.6968, 'Precision': 0.7081, 'Recall': 0.6964, 'F1-score': 0.6933}
+best epoch 24: F1-score=0.6982
+epoch 26: train_loss = 0.6380
+26: {'Accuracy': 0.7111, 'Precision': 0.7262, 'Recall': 0.7107, 'F1-score': 0.7083}
+best epoch 26: F1-score=0.7083
+epoch 27: train_loss = 0.6310
+27: {'Accuracy': 0.7079, 'Precision': 0.7229, 'Recall': 0.7075, 'F1-score': 0.7011}
+best epoch 26: F1-score=0.7083
+epoch 28: train_loss = 0.6091
+28: {'Accuracy': 0.7046, 'Precision': 0.7177, 'Recall': 0.704, 'F1-score': 0.7011}
+best epoch 26: F1-score=0.7083
+epoch 29: train_loss = 0.5682
+29: {'Accuracy': 0.7269, 'Precision': 0.7437, 'Recall': 0.7261, 'F1-score': 0.7241}
+best epoch 29: F1-score=0.7241
+[?2004h(wf) root@autodl-container-94144787f5-d0478b55:~/autodl-tmp/Adaptive-WF-Attack/wflib_copy# python ../exp/third_my.py[6Pmy.pythird_my.py[1P.py[1P.pyt.pye.pys.pyt.py
+[?2004l/root/.local/lib/python3.8/site-packages/timm/models/layers/__init__.py:49: FutureWarning: Importing from timm.models.layers is deprecated, please import via timm.layers
+  warnings.warn(f"Importing from {__name__} is deprecated, please import via timm.layers", FutureWarning)
+Test: torch.Size([22603, 1, 5000]) torch.Size([22603])
+../exp/third_test.py:31: FutureWarning: You are using `torch.load` with `weights_only=False` (the current default value), which uses the default pickle module implicitly. It is possible to construct malicious pickle data which will execute arbitrary code during unpickling (See https://github.com/pytorch/pytorch/blob/main/SECURITY.md#untrusted-models for more details). In a future release, the default value for `weights_only` will be flipped to `True`. This limits the functions that could be executed during unpickling. Arbitrary objects will no longer be allowed to be loaded via this mode unless they are explicitly allowlisted by the user via `torch.serialization.add_safe_globals`. We recommend you start setting `weights_only=True` for any use case where you don't have full control of the loaded file. Please open an issue on GitHub for any issues related to this experimental feature.
+  model.load_state_dict(torch.load(model_path, map_location=device), strict=False)
+Accuracy : 0.6860
+Precision: 0.6954
+Recall   : 0.6863
+F1-score : 0.6825
+[?2004h(wf) root@autodl-container-94144787f5-d0478b55:~/autodl-tmp/Adaptive-WF-Attack/wflib_copy# 
