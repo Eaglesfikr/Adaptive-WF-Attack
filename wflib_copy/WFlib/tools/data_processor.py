@@ -43,10 +43,10 @@ def load_data(data_path, feature_type, seq_len, num_tab=1):
         X = length_align(X, seq_len)
         X = torch.tensor(X[:,np.newaxis], dtype=torch.float32)
     elif feature_type == "DT":
-        X = length_align(X, seq_len)
+        X = length_align(X, seq_len) #原始序列
         X = torch.tensor(X[:,np.newaxis], dtype=torch.float32)
     elif feature_type == "DT2":
-        X_dir = np.sign(X)
+        X_dir = np.sign(X) # 带时间戳
         X_time = np.abs(X)
         X_time = np.diff(X_time)
         X_time[X_time < 0] = 0  # Ensure no negative values
