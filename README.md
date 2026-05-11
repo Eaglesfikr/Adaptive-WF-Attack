@@ -118,7 +118,7 @@ python -u exp/train.py \
 python -u exp/test.py \
         --dataset TemporalDrift \
         --model DF \
-        --device cuda:3 \
+        --device cuda:0 \
         --test_file day270 \
         --feature DIR \
         --seq_len 5000 \
