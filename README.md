@@ -104,7 +104,7 @@ This project is released under the **MIT License**. See [LICENSE](./LICENSE) for
 python -u exp/proteus.py \
     --dataset TemporalDrift \
     --model DF \
-    --device cuda:3 \
+    --device cuda:0 \
     --train_file train \
     --test_file day270 \
     --feature DIR \
