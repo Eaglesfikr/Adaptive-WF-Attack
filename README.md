@@ -115,6 +115,8 @@ python -u exp/train.py \
   --save_metric F1-score \
   --save_name max_f1
 
+cp checkpoints/TemporalDrift/DF/max_f1.pth checkpoints/TemporalDrift/DF/proteus.pth
+
 python -u exp/test.py \
         --dataset TemporalDrift \
         --model DF \
