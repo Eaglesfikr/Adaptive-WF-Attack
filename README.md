@@ -96,3 +96,22 @@ If you use this code or dataset in your research, please cite our paper:
 ## 📜 License
 
 This project is released under the **MIT License**. See [LICENSE](./LICENSE) for details.
+
+
+
+
+```
+python -u exp/proteus.py \
+    --dataset TemporalDrift \
+    --model DF \
+    --device cuda:3 \
+    --train_file train \
+    --test_file day270 \
+    --feature DIR \
+    --seq_len 5000 \
+    --batch_size 128 \
+    --eval_metrics Accuracy Precision Recall F1-score \
+    --load_name proteus \
+    --model_save_name proteus \
+    --result_file Proteus_day270 
+```
